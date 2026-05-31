@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BPM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red: #e03030;
+    --red-dim: #7a1a1a;
+    --red-glow: rgba(224,48,48,0.35);
+    --bg: #0a0808;
+    --surface: #140e0e;
+    --surface2: #1e1414;
+    --text: #f0e8e8;
+    --text-dim: #8a7070;
+    --green: #2ecc71;
+    --amber: #f39c12;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 20px 32px;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 3px;
+    color: var(--red);
+  }
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.4s, box-shadow 0.4s;
+  }
+  .status-dot.active {
+    background: var(--red);
+    box-shadow: 0 0 10px var(--red-glow);
+    animation: pulse-dot 1s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { transform: scale(1); opacity:1; }
+    50% { transform: scale(1.4); opacity:0.7; }
+  }
+
+  /* BPM display */
+  .bpm-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .bpm-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 100px;
+    line-height: 1;
+    color: var(--text);
+    transition: color 0.5s;
+    letter-spacing: 2px;
+  }
+  .bpm-number.measuring { color: var(--red); }
+  .bpm-label {
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .bpm-status {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    min-height: 20px;
+    transition: color 0.3s;
+  }
+  .bpm-status.ok { color: var(--green); }
+  .bpm-status.warn { color: var(--amber); }
+  .bpm-status.danger { color: var(--red); }
+
+  /* Waveform */
+  .wave-container {
+    width: 100%;
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--surface2);
+    overflow: hidden;
+    position: relative;
+  }
+  canvas#wave {
+    width: 100%;
+    height: 80px;
+    display: block;
+  }
+  .wave-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.5s;
+  }
+  .wave-overlay.hidden { opacity: 0; }
+
+  /* Camera preview (hidden, used for pixel analysis) */
+  video#cam { display: none; }
+  canvas#capture { display: none; }
+
+  /* Finger indicator */
+  .finger-area {
+    width: 100%;
+    background: var(--surface);
+    border-radius: 16px;
+    border: 2px dashed var(--surface2);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    transition: border-color 0.4s, background 0.4s;
+  }
+  .finger-area.detecting {
+    border-color: var(--red-dim);
+    background: #1a0e0e;
+  }
+  .finger-icon {
+    font-size: 40px;
+    filter: grayscale(1);
+    transition: filter 0.5s;
+  }
+  .finger-area.detecting .finger-icon { filter: none; }
+  .finger-text {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.5;
+  }
+  .finger-area.detecting .finger-text { color: var(--text); }
+
+  /* Red intensity bar */
+  .intensity-bar-wrap {
+    width: 100%;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+  }
+  .finger-area.detecting .intensity-bar-wrap { display: block; }
+  .intensity-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--red);
+    border-radius: 2px;
+    transition: width 0.15s;
+  }
+
+  /* Button */
+  .btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-start {
+    background: var(--red);
+    color: #fff;
+  }
+  .btn-start:active { transform: scale(0.97); background: #b82020; }
+  .btn-stop {
+    background: var(--surface2);
+    color: var(--text-dim);
+  }
+  .btn-stop:active { transform: scale(0.97); }
+
+  /* Progress ring */
+  .progress-wrap {
+    position: relative;
+    width: 60px; height: 60px;
+    display: none;
+  }
+  .progress-wrap.visible { display: flex; align-items:center; justify-content:center; }
+  svg.ring { position:absolute; top:0; left:0; transform: rotate(-90deg); }
+  circle.track { fill:none; stroke:var(--surface2); stroke-width:4; }
+  circle.prog  { fill:none; stroke:var(--red); stroke-width:4; stroke-linecap:round;
+    stroke-dasharray: 163; stroke-dashoffset: 163;
+    transition: stroke-dashoffset 0.5s linear; }
+  .progress-text { font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--text); }
+
+  .controls-row {
+    width:100%;
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Frecuencia Cardíaca</h1>
+  <div class="status-dot" id="statusDot"></div>
+</div>
+
+<div class="bpm-display">
+  <div class="bpm-number" id="bpmNumber">--</div>
+  <div class="bpm-label">pulsaciones por minuto</div>
+  <div class="bpm-status" id="bpmStatus">Coloca tu dedo para comenzar</div>
+</div>
+
+<div class="wave-container">
+  <canvas id="wave" width="600" height="80"></canvas>
+  <div class="wave-overlay" id="waveOverlay">señal en espera</div>
+</div>
+
+<div class="finger-area" id="fingerArea">
+  <div class="finger-icon">👆</div>
+  <div class="finger-text">Cubre la cámara trasera y el flash<br>con la yema de tu dedo</div>
+  <div class="intensity-bar-wrap">
+    <div class="intensity-bar" id="intensityBar"></div>
+  </div>
+</div>
+
+<div class="controls-row">
+  <div class="progress-wrap" id="progressWrap">
+    <svg class="ring" width="60" height="60" viewBox="0 0 60 60">
+      <circle class="track" cx="30" cy="30" r="26"/>
+      <circle class="prog" cx="30" cy="30" r="26" id="progCircle"/>
+    </svg>
+    <span class="progress-text" id="progressText">30</span>
+  </div>
+  <button class="btn btn-start" id="btnStart">Iniciar medición</button>
+</div>
+
+<video id="cam" autoplay playsinline muted></video>
+<canvas id="capture"></canvas>
+
+<script>
+const MEASURE_SECONDS = 30;
+const SAMPLE_RATE_MS  = 100;
+const MIN_RED_THRESHOLD = 160;
+
+let stream = null;
+let intervalId = null;
+let timerCountdown = null;
+let redHistory = [];
+let waveHistory = [];
+let measuring = false;
+let secondsLeft = MEASURE_SECONDS;
+
+const video       = document.getElementById('cam');
+const capCanvas   = document.getElementById('capture');
+const capCtx      = capCanvas.getContext('2d');
+const waveCanvas  = document.getElementById('wave');
+const waveCtx     = waveCanvas.getContext('2d');
+
+const bpmNumber   = document.getElementById('bpmNumber');
+const bpmStatus   = document.getElementById('bpmStatus');
+const statusDot   = document.getElementById('statusDot');
+const fingerArea  = document.getElementById('fingerArea');
+const intensityBar= document.getElementById('intensityBar');
+const waveOverlay = document.getElementById('waveOverlay');
+const btnStart    = document.getElementById('btnStart');
+const progressWrap= document.getElementById('progressWrap');
+const progCircle  = document.getElementById('progCircle');
+const progressText= document.getElementById('progressText');
+
+capCanvas.width  = 64;
+capCanvas.height = 64;
+
+// --- Cámara ---
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { exact: 'environment' },
+        width: { ideal: 320 },
+        height: { ideal: 240 },
+        torch: true
+      },
+      audio: false
+    });
+    video.srcObject = stream;
+
+    // Intentar encender flash/torch
+    const track = stream.getVideoTracks()[0];
+    try {
+      await track.applyConstraints({ advanced: [{ torch: true }] });
+    } catch(e) {}
+
+    return true;
+  } catch(err) {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      video.srcObject = stream;
+      return true;
+    } catch(e) {
+      bpmStatus.textContent = 'No se pudo acceder a la cámara';
+      bpmStatus.className = 'bpm-status danger';
+      return false;
+    }
+  }
+}
+
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+}
+
+// --- Lectura de rojo ---
+function getRedAvg() {
+  capCtx.drawImage(video, 0, 0, 64, 64);
+  const data = capCtx.getImageData(0, 0, 64, 64).data;
+  let r = 0, g = 0, b = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    r += data[i];
+    g += data[i+1];
+    b += data[i+2];
+  }
+  const n = data.length / 4;
+  return { r: r/n, g: g/n, b: b/n };
+}
+
+// --- Detección de picos (conta pulsos) ---
+function countPeaks(arr) {
+  if (arr.length < 5) return 0;
+  const mean = arr.reduce((a,b) => a+b, 0) / arr.length;
+  const std  = Math.sqrt(arr.reduce((a,b) => a + (b-mean)**2, 0) / arr.length);
+  const thresh = mean + std * 0.4;
+  let peaks = 0;
+  for (let i = 2; i < arr.length - 2; i++) {
+    if (arr[i] > thresh &&
+        arr[i] > arr[i-1] && arr[i] > arr[i-2] &&
+        arr[i] > arr[i+1] && arr[i] > arr[i+2]) {
+      peaks++;
+      i += 2;
+    }
+  }
+  return peaks;
+}
+
+// --- Waveform ---
+function drawWave() {
+  const W = waveCanvas.width, H = waveCanvas.height;
+  waveCtx.clearRect(0, 0, W, H);
+  if (waveHistory.length < 2) return;
+
+  const min = Math.min(...waveHistory);
+  const max = Math.max(...waveHistory);
+  const range = max - min || 1;
+
+  waveCtx.beginPath();
+  waveCtx.strokeStyle = '#e03030';
+  waveCtx.lineWidth = 2;
+  waveCtx.shadowColor = 'rgba(224,48,48,0.5)';
+  waveCtx.shadowBlur = 6;
+
+  waveHistory.forEach((v, i) => {
+    const x = (i / (waveHistory.length - 1)) * W;
+    const y = H - ((v - min) / range) * (H * 0.8) - H * 0.1;
+    i === 0 ? waveCtx.moveTo(x, y) : waveCtx.lineTo(x, y);
+  });
+  waveCtx.stroke();
+}
+
+// --- Clasificar BPM ---
+function classifyBPM(bpm) {
+  if (bpm < 50)  return { text: 'Bradicardia — pulso muy bajo', cls: 'danger' };
+  if (bpm < 60)  return { text: 'Pulso bajo', cls: 'warn' };
+  if (bpm <= 100) return { text: 'Ritmo normal ✓', cls: 'ok' };
+  if (bpm <= 120) return { text: 'Pulso elevado', cls: 'warn' };
+  return { text: 'Taquicardia — pulso muy alto', cls: 'danger' };
+}
+
+// --- Progreso ---
+function updateProgress(secs) {
+  const total = MEASURE_SECONDS;
+  const done  = total - secs;
+  const frac  = done / total;
+  const circumference = 163;
+  progCircle.style.strokeDashoffset = circumference * (1 - frac);
+  progressText.textContent = secs;
+}
+
+// --- Muestra BPM parcial mientras mide ---
+function showPartialBPM() {
+  if (redHistory.length < 10) return;
+  const peaks = countPeaks(redHistory);
+  const elapsed = (MEASURE_SECONDS - secondsLeft) || 1;
+  const bpm = Math.round((peaks / elapsed) * 60);
+  if (bpm > 30 && bpm < 220) {
+    bpmNumber.textContent = bpm;
+    bpmNumber.className = 'bpm-number measuring';
+  }
+}
+
+// --- Iniciar ---
+async function startMeasure() {
+  bpmNumber.textContent = '--';
+  bpmNumber.className = 'bpm-number';
+  bpmStatus.textContent = 'Accediendo a la cámara...';
+  bpmStatus.className = 'bpm-status';
+  btnStart.disabled = true;
+
+  const ok = await startCamera();
+  if (!ok) { btnStart.disabled = false; return; }
+
+  measuring = true;
+  redHistory = [];
+  waveHistory = [];
+  secondsLeft = MEASURE_SECONDS;
+
+  statusDot.className = 'status-dot active';
+  fingerArea.classList.add('detecting');
+  waveOverlay.classList.add('hidden');
+  progressWrap.classList.add('visible');
+  updateProgress(secondsLeft);
+
+  btnStart.textContent = 'Detener';
+  btnStart.className = 'btn btn-stop';
+  btnStart.disabled = false;
+  btnStart.onclick = stopMeasure;
+
+  bpmStatus.textContent = 'Coloca tu dedo sobre la cámara...';
+
+  // Muestreo cada 100ms
+  intervalId = setInterval(() => {
+    const { r, g, b } = getRedAvg();
+    const intensity = r / 255;
+    intensityBar.style.width = (intensity * 100) + '%';
+
+    const fingerDetected = r > MIN_RED_THRESHOLD && r > g * 1.5 && r > b * 1.5;
+
+    if (fingerDetected) {
+      redHistory.push(r);
+      waveHistory.push(r);
+      if (waveHistory.length > 120) waveHistory.shift();
+      drawWave();
+      bpmStatus.textContent = 'Midiendo... mantén el dedo quieto';
+      bpmStatus.className = 'bpm-status';
+      showPartialBPM();
+    } else {
+      bpmStatus.textContent = 'No detecto el dedo — cubre bien la cámara';
+      bpmStatus.className = 'bpm-status warn';
+    }
+  }, SAMPLE_RATE_MS);
+
+  // Cuenta regresiva
+  timerCountdown = setInterval(() => {
+    secondsLeft--;
+    updateProgress(secondsLeft);
+    if (secondsLeft <= 0) finishMeasure();
+  }, 1000);
+}
+
+// --- Finalizar ---
+function finishMeasure() {
+  clearInterval(intervalId);
+  clearInterval(timerCountdown);
+  stopCamera();
+  measuring = false;
+
+  statusDot.className = 'status-dot';
+  fingerArea.classList.remove('detecting');
+  progressWrap.classList.remove('visible');
+
+  btnStart.textContent = 'Medir de nuevo';
+  btnStart.className = 'btn btn-start';
+  btnStart.onclick = startMeasure;
+
+  if (redHistory.length < 15) {
+    bpmStatus.textContent = 'Muestra insuficiente — intenta de nuevo';
+    bpmStatus.className = 'bpm-status danger';
+    bpmNumber.textContent = '--';
+    bpmNumber.className = 'bpm-number';
+    return;
+  }
+
+  const peaks = countPeaks(redHistory);
+  const bpm   = Math.round((peaks / MEASURE_SECONDS) * 60);
+
+  if (bpm < 30 || bpm > 220) {
+    bpmStatus.textContent = 'Resultado inválido — repite la medición';
+    bpmStatus.className = 'bpm-status danger';
+    bpmNumber.textContent = '??';
+    return;
+  }
+
+  bpmNumber.textContent = bpm;
+  bpmNumber.className = 'bpm-number';
+
+  const { text, cls } = classifyBPM(bpm);
+  bpmStatus.textContent = text;
+  bpmStatus.className = 'bpm-status ' + cls;
+
+  // Notificar a App Inventor si está disponible
+  try {
+    AppInventor.setWebViewString('BPM:' + bpm);
+  } catch(e) {}
+}
+
+// --- Detener manualmente ---
+function stopMeasure() {
+  clearInterval(intervalId);
+  clearInterval(timerCountdown);
+  stopCamera();
+  measuring = false;
+
+  statusDot.className = 'status-dot';
+  fingerArea.classList.remove('detecting');
+  progressWrap.classList.remove('visible');
+  waveOverlay.classList.remove('hidden');
+
+  bpmNumber.textContent = '--';
+  bpmNumber.className = 'bpm-number';
+  bpmStatus.textContent = 'Medición cancelada';
+  bpmStatus.className = 'bpm-status';
+
+  btnStart.textContent = 'Iniciar medición';
+  btnStart.className = 'btn btn-start';
+  btnStart.onclick = startMeasure;
+}
+
+btnStart.onclick = startMeasure;
+</script>
+</body>
+</html>
