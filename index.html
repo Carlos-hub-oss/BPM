@@ -277,7 +277,7 @@
 <script>
 const MEASURE_SECONDS = 30;
 const SAMPLE_RATE_MS  = 100;
-const MIN_RED_THRESHOLD = 160;
+const MIN_RED_THRESHOLD = 100;
 
 let stream = null;
 let intervalId = null;
@@ -473,7 +473,7 @@ async function startMeasure() {
     const intensity = r / 255;
     intensityBar.style.width = (intensity * 100) + '%';
 
-    const fingerDetected = r > MIN_RED_THRESHOLD && r > g * 1.5 && r > b * 1.5;
+    const fingerDetected = r > MIN_RED_THRESHOLD && r > g * 1.2 && r > b * 1.2;
 
     if (fingerDetected) {
       redHistory.push(r);
