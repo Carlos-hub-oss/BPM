@@ -153,7 +153,10 @@ function stopCamera() {
 }
 
 function getRedAvg() {
-  capCtx.drawImage(video, 0, 0, 64, 64);
+  if (video.readyState !== 4) return { r:0, g:0, b:0 };
+capCtx.drawImage(video, 0, 0, 64, 64);
+  video.setAttribute('crossorigin', 'anonymous');
+await new Promise(r => { video.onloadeddata = r; });
   const data = capCtx.getImageData(0, 0, 64, 64).data;
   let r=0, g=0, b=0;
   for (let i=0; i<data.length; i+=4) { r+=data[i]; g+=data[i+1]; b+=data[i+2]; }
