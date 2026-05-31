@@ -153,10 +153,7 @@ function stopCamera() {
 }
 
 function getRedAvg() {
-  if (video.readyState !== 4) return { r:0, g:0, b:0 };
-capCtx.drawImage(video, 0, 0, 64, 64);
-  video.setAttribute('crossorigin', 'anonymous');
-await new Promise(r => { video.onloadeddata = r; });
+  capCtx.drawImage(video, 0, 0, 64, 64);
   const data = capCtx.getImageData(0, 0, 64, 64).data;
   let r=0, g=0, b=0;
   for (let i=0; i<data.length; i+=4) { r+=data[i]; g+=data[i+1]; b+=data[i+2]; }
@@ -166,21 +163,36 @@ await new Promise(r => { video.onloadeddata = r; });
 
 function countPeaks(arr) {
   if (arr.length < 5) return 0;
-  // Suavizar la señal primero
+
+  // Suavizar más agresivamente (ventana de 5)
   const smooth = arr.map((v,i) => {
-    const s = arr.slice(Math.max(0,i-2), i+3);
+    const s = arr.slice(Math.max(0,i-4), i+5);
     return s.reduce((a,b)=>a+b,0)/s.length;
   });
-  const mean = smooth.reduce((a,b)=>a+b,0)/smooth.length;
-  const std  = Math.sqrt(smooth.reduce((a,b)=>a+(b-mean)**2,0)/smooth.length);
-  const thresh = mean + std * 0.3;
+
+  // Normalizar entre 0 y 1
+  const min = Math.min(...smooth);
+  const max = Math.max(...smooth);
+  const range = max - min;
+
+  // Si la señal es completamente plana, no hay pulso
+  if (range < 0.5) return 0;
+
+  const norm = smooth.map(v => (v - min) / range);
+
+  // Umbral muy bajo — detecta picos sutiles
+  const thresh = 0.55;
   let peaks = 0;
-  for (let i=2; i<smooth.length-2; i++) {
-    if (smooth[i] > thresh &&
-        smooth[i] > smooth[i-1] && smooth[i] > smooth[i-2] &&
-        smooth[i] > smooth[i+1] && smooth[i] > smooth[i+2]) {
+  const minDistance = 6; // mínimo 6 muestras entre picos (~600ms a 100ms/muestra)
+  let lastPeak = -minDistance;
+
+  for (let i=2; i<norm.length-2; i++) {
+    if (norm[i] > thresh &&
+        norm[i] >= norm[i-1] && norm[i] >= norm[i-2] &&
+        norm[i] >= norm[i+1] && norm[i] >= norm[i+2] &&
+        i - lastPeak >= minDistance) {
       peaks++;
-      i += 3;
+      lastPeak = i;
     }
   }
   return peaks;
