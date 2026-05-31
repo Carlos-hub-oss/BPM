@@ -136,7 +136,6 @@ async function startCamera() {
     video.srcObject = stream;
     video.setAttribute('crossorigin', 'anonymous');
 await new Promise(r => { video.onloadeddata = r; });
-await new Promise(r => { video.onloadeddata = r; });
 
     // Intentar encender flash
     const track = stream.getVideoTracks()[0];
