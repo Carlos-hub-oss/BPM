@@ -111,7 +111,7 @@
 </div>
 
 <div class="card">
-  <div class="card-title">Distancia aproximada (km)</div>
+  <div class="card-title">Distancia aproximada (m)</div>
   <div class="chart-wrap">
     <canvas id="chartKm"></canvas>
   </div>
@@ -139,7 +139,7 @@ function getDayLabels() {
 
 const pasos  = getParams();
 const labels = getDayLabels();
-const km     = pasos.map(p => parseFloat((p * 0.00076).toFixed(2)));
+const km = pasos.map(p => parseFloat((p * 0.75).toFixed(1)));
 
 // Stats
 const total  = pasos.reduce((a,b) => a+b, 0);
@@ -191,7 +191,7 @@ new Chart(document.getElementById('chartKm'), {
   data: {
     labels,
     datasets: [{
-      data: km,
+      data: m,
       borderColor: '#27ae60',
       backgroundColor: 'rgba(39,174,96,0.08)',
       borderWidth: 2.5,
