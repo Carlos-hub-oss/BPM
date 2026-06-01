@@ -23,7 +23,7 @@
   .bpm-number { font-family:'Bebas Neue',sans-serif; font-size:100px; line-height:1; color:var(--text); transition:color 0.5s; letter-spacing:2px; }
   .bpm-number.measuring { color:var(--red); }
   .bpm-label { font-size:12px; letter-spacing:4px; color:var(--text-dim); text-transform:uppercase; }
-  .bpm-status { margin-top:8px; font-size:13px; font-weight:500; color:var(--text-dim); min-height:20px; transition:color 0.3s; }
+  .bpm-status { margin-top:8px; font-size:13px; font-weight:500; color:var(--text-dim); min-height:20px; transition:color 0.3s; text-align:center; }
   .bpm-status.ok { color:var(--green); }
   .bpm-status.warn { color:var(--amber); }
   .bpm-status.danger { color:var(--red); }
@@ -33,15 +33,15 @@
   .wave-overlay.hidden { opacity:0; }
   video#cam { display:none; }
   canvas#capture { display:none; }
-  .finger-area { width:100%; background:var(--surface); border-radius:16px; border:2px dashed var(--surface2); padding:20px; display:flex; flex-direction:column; align-items:center; gap:10px; transition:border-color 0.4s,background 0.4s; }
+  .finger-area { width:100%; background:var(--surface); border-radius:16px; border:2px dashed var(--surface2); padding:16px; display:flex; flex-direction:column; align-items:center; gap:8px; transition:border-color 0.4s,background 0.4s; }
   .finger-area.detecting { border-color:var(--red-dim); background:#1a0e0e; }
-  .finger-icon { font-size:40px; }
+  .finger-icon { font-size:36px; }
   .finger-text { font-size:13px; color:var(--text-dim); text-align:center; line-height:1.5; }
   .finger-area.detecting .finger-text { color:var(--text); }
   .intensity-bar-wrap { width:100%; height:6px; background:var(--surface2); border-radius:3px; overflow:hidden; }
   .intensity-bar { height:100%; width:0%; background:var(--red); border-radius:3px; transition:width 0.1s; }
   .intensity-label { font-size:11px; color:var(--text-dim); }
-  .btn { width:100%; padding:16px; border-radius:12px; border:none; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:500; letter-spacing:1px; cursor:pointer; transition:all 0.2s; -webkit-tap-highlight-color:transparent; }
+  .btn { width:100%; padding:16px; border-radius:12px; border:none; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:500; letter-spacing:1px; cursor:pointer; transition:all 0.2s; }
   .btn-start { background:var(--red); color:#fff; }
   .btn-start:active { transform:scale(0.97); background:#b82020; }
   .btn-stop { background:var(--surface2); color:var(--text-dim); }
@@ -78,7 +78,7 @@
   <div class="intensity-bar-wrap">
     <div class="intensity-bar" id="intensityBar"></div>
   </div>
-  <div class="intensity-label" id="intensityLabel">intensidad del rojo: --</div>
+  <div class="intensity-label" id="intensityLabel">rojo: -- verde: -- azul: --</div>
 </div>
 
 <div class="controls-row">
@@ -106,23 +106,23 @@ let redHistory = [];
 let waveHistory = [];
 let secondsLeft = MEASURE_SECONDS;
 
-const video        = document.getElementById('cam');
-const capCanvas    = document.getElementById('capture');
-const capCtx       = capCanvas.getContext('2d');
-const waveCanvas   = document.getElementById('wave');
-const waveCtx      = waveCanvas.getContext('2d');
-const bpmNumber    = document.getElementById('bpmNumber');
-const bpmStatus    = document.getElementById('bpmStatus');
-const statusDot    = document.getElementById('statusDot');
-const fingerArea   = document.getElementById('fingerArea');
-const fingerText   = document.getElementById('fingerText');
-const intensityBar = document.getElementById('intensityBar');
+const video          = document.getElementById('cam');
+const capCanvas      = document.getElementById('capture');
+const capCtx         = capCanvas.getContext('2d');
+const waveCanvas     = document.getElementById('wave');
+const waveCtx        = waveCanvas.getContext('2d');
+const bpmNumber      = document.getElementById('bpmNumber');
+const bpmStatus      = document.getElementById('bpmStatus');
+const statusDot      = document.getElementById('statusDot');
+const fingerArea     = document.getElementById('fingerArea');
+const fingerText     = document.getElementById('fingerText');
+const intensityBar   = document.getElementById('intensityBar');
 const intensityLabel = document.getElementById('intensityLabel');
-const waveOverlay  = document.getElementById('waveOverlay');
-const btnStart     = document.getElementById('btnStart');
-const progressWrap = document.getElementById('progressWrap');
-const progCircle   = document.getElementById('progCircle');
-const progressText = document.getElementById('progressText');
+const waveOverlay    = document.getElementById('waveOverlay');
+const btnStart       = document.getElementById('btnStart');
+const progressWrap   = document.getElementById('progressWrap');
+const progCircle     = document.getElementById('progCircle');
+const progressText   = document.getElementById('progressText');
 
 capCanvas.width  = 64;
 capCanvas.height = 64;
@@ -134,13 +134,11 @@ async function startCamera() {
       audio: false
     });
     video.srcObject = stream;
-    video.setAttribute('crossorigin', 'anonymous');
-await new Promise(r => { video.onloadeddata = r; });
+    await new Promise(r => { video.onloadedmetadata = r; });
+    await new Promise(r => setTimeout(r, 500));
 
-    // Intentar encender flash
     const track = stream.getVideoTracks()[0];
     try { await track.applyConstraints({ advanced: [{ torch: true }] }); } catch(e) {}
-
     return true;
   } catch(e) {
     bpmStatus.textContent = 'No se pudo acceder a la cámara';
@@ -154,8 +152,8 @@ function stopCamera() {
 }
 
 function getRedAvg() {
-if (video.readyState !== 4) return { r:0, g:0, b:0 };
-capCtx.drawImage(video, 0, 0, 64, 64);
+  if (video.readyState < 2) return { r:0, g:0, b:0 };
+  capCtx.drawImage(video, 0, 0, 64, 64);
   const data = capCtx.getImageData(0, 0, 64, 64).data;
   let r=0, g=0, b=0;
   for (let i=0; i<data.length; i+=4) { r+=data[i]; g+=data[i+1]; b+=data[i+2]; }
@@ -165,34 +163,24 @@ capCtx.drawImage(video, 0, 0, 64, 64);
 
 function countPeaks(arr) {
   if (arr.length < 5) return 0;
-
-  // Suavizar más agresivamente (ventana de 5)
   const smooth = arr.map((v,i) => {
     const s = arr.slice(Math.max(0,i-4), i+5);
     return s.reduce((a,b)=>a+b,0)/s.length;
   });
-
-  // Normalizar entre 0 y 1
   const min = Math.min(...smooth);
   const max = Math.max(...smooth);
   const range = max - min;
-
-  // Si la señal es completamente plana, no hay pulso
-  if (range < 0.5) return 0;
-
-  const norm = smooth.map(v => (v - min) / range);
-
-  // Umbral muy bajo — detecta picos sutiles
+  if (range < 0.3) return 0;
+  const norm = smooth.map(v => (v-min)/range);
   const thresh = 0.55;
   let peaks = 0;
-  const minDistance = 6; // mínimo 6 muestras entre picos (~600ms a 100ms/muestra)
-  let lastPeak = -minDistance;
-
+  const minDist = 6;
+  let lastPeak = -minDist;
   for (let i=2; i<norm.length-2; i++) {
     if (norm[i] > thresh &&
         norm[i] >= norm[i-1] && norm[i] >= norm[i-2] &&
         norm[i] >= norm[i+1] && norm[i] >= norm[i+2] &&
-        i - lastPeak >= minDistance) {
+        i - lastPeak >= minDist) {
       peaks++;
       lastPeak = i;
     }
@@ -210,6 +198,8 @@ function drawWave() {
   waveCtx.beginPath();
   waveCtx.strokeStyle = '#e03030';
   waveCtx.lineWidth = 2;
+  waveCtx.shadowColor = 'rgba(224,48,48,0.4)';
+  waveCtx.shadowBlur = 4;
   waveHistory.forEach((v,i) => {
     const x = (i/(waveHistory.length-1))*W;
     const y = H - ((v-min)/range)*(H*0.8) - H*0.1;
@@ -233,7 +223,7 @@ function updateProgress(secs) {
 }
 
 function showPartialBPM() {
-  if (redHistory.length < 10) return;
+  if (redHistory.length < 15) return;
   const peaks = countPeaks(redHistory);
   const elapsed = (MEASURE_SECONDS - secondsLeft) || 1;
   const bpm = Math.round((peaks / elapsed) * 60);
@@ -268,24 +258,21 @@ async function startMeasure() {
   btnStart.disabled = false;
   btnStart.onclick = stopMeasure;
 
-  bpmStatus.textContent = 'Pon el dedo y no lo muevas...';
+  bpmStatus.textContent = 'Pon el dedo sobre la cámara y el flash...';
 
-  // Muestreo — graba siempre, sin importar si detecta dedo o no
   intervalId = setInterval(() => {
     const { r, g, b } = getRedAvg();
 
-    // Mostrar intensidad real para depuración
     intensityBar.style.width = (r/255*100) + '%';
     intensityLabel.textContent = `rojo: ${Math.round(r)}  verde: ${Math.round(g)}  azul: ${Math.round(b)}`;
 
-    // Siempre grabar — el dedo domina el rojo cuando el flash atraviesa la piel
     redHistory.push(r);
     waveHistory.push(r);
     if (waveHistory.length > 150) waveHistory.shift();
     drawWave();
 
-    // Indicar si parece que el dedo está bien puesto
-    if (r > 100 && r > g * 1.1) {
+    // Umbral mínimo muy bajo — detecta con poca luz
+    if (r > 50) {
       fingerText.textContent = '✓ Señal detectada — mantén quieto';
       bpmStatus.textContent = 'Midiendo...';
       bpmStatus.className = 'bpm-status ok';
@@ -358,7 +345,7 @@ function stopMeasure() {
   bpmNumber.className = 'bpm-number';
   bpmStatus.textContent = 'Medición cancelada';
   bpmStatus.className = 'bpm-status';
-  intensityLabel.textContent = 'intensidad del rojo: --';
+  intensityLabel.textContent = 'rojo: -- verde: -- azul: --';
 
   btnStart.textContent = 'Iniciar medición';
   btnStart.className = 'btn btn-start';
