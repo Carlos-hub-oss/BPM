@@ -178,9 +178,9 @@ function countPeaks(arr) {
   const min = Math.min(...smooth);
   const max = Math.max(...smooth);
   const range = max - min;
-  if (range < 0.3) return 0;
+  if (range < 0.1) return 0;
   const norm = smooth.map(v => (v-min)/range);
-  const thresh = 0.55;
+  const thresh = 0.45;
   let peaks = 0;
   const minDist = 6;
   let lastPeak = -minDist;
