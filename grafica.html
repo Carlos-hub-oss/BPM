@@ -68,36 +68,33 @@ function getParams() {
 function getWeekLabels(pasosRaw) {
   const diasNombres = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const hoy = new Date();
+  hoy.setHours(0,0,0,0);
   const diaHoy = hoy.getDay(); // 0=Dom, 1=Lun... 6=Sáb
 
-  // Encontrar el lunes de esta semana
-  const diffLunes = (diaHoy === 0) ? -6 : 1 - diaHoy;
+  // Encontrar el lunes de esta semana (en México domingo=0)
+  const diffLunes = diaHoy === 0 ? -6 : -(diaHoy - 1);
   const lunes = new Date(hoy);
   lunes.setDate(hoy.getDate() + diffLunes);
 
-  // Construir los 7 días de la semana (lun-dom)
+  // Construir los 7 días lun-dom
   const labels = [];
   const pasos  = new Array(7).fill(0);
-  const fechas = [];
 
   for (let i = 0; i < 7; i++) {
     const dia = new Date(lunes);
     dia.setDate(lunes.getDate() + i);
+    dia.setHours(0,0,0,0);
     const nombre = diasNombres[dia.getDay()];
-    const esHoy  = dia.toDateString() === hoy.toDateString();
+    const esHoy  = dia.getTime() === hoy.getTime();
     labels.push(esHoy ? nombre + ' ★' : nombre);
-    fechas.push(dia);
-  }
 
-  // Los datos vienen de hace 6 días hasta hoy
-  // Necesitamos mapear cada día de la semana con su dato correspondiente
-  for (let i = 0; i < 7; i++) {
-    const diaObjetivo = fechas[i];
-    // Buscar en pasosRaw el índice que corresponde a este día
+    // Buscar en pasosRaw el dato correspondiente a este día
+    // pasosRaw[0] = hace 6 días, pasosRaw[6] = hoy
     for (let j = 0; j < 7; j++) {
       const diaRaw = new Date(hoy);
       diaRaw.setDate(hoy.getDate() - 6 + j);
-      if (diaRaw.toDateString() === diaObjetivo.toDateString()) {
+      diaRaw.setHours(0,0,0,0);
+      if (diaRaw.getTime() === dia.getTime()) {
         pasos[i] = pasosRaw[j];
         break;
       }
@@ -106,11 +103,11 @@ function getWeekLabels(pasosRaw) {
 
   // Rango de fechas para el subtítulo
   const opciones = { day: 'numeric', month: 'short' };
-  const inicio = lunes.toLocaleDateString('es-MX', opciones);
-  const fin = new Date(lunes);
-  fin.setDate(lunes.getDate() + 6);
-  const finStr = fin.toLocaleDateString('es-MX', opciones);
-  document.getElementById('rangoFechas').textContent = inicio + ' — ' + finStr;
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate() + 6);
+  document.getElementById('rangoFechas').textContent =
+    lunes.toLocaleDateString('es-MX', opciones) + ' — ' +
+    domingo.toLocaleDateString('es-MX', opciones);
 
   return { labels, pasos };
 }
