@@ -182,7 +182,7 @@ function countPeaks(arr) {
   const norm = smooth.map(v => (v-min)/range);
   const thresh = 0.45;
   let peaks = 0;
-  const minDist = 6;
+  const minDist = 4;
   let lastPeak = -minDist;
   for (let i=2; i<norm.length-2; i++) {
     if (norm[i] > thresh &&
