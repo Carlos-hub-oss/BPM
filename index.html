@@ -134,10 +134,9 @@ async function startCamera() {
       audio: false
     });
     video.srcObject = stream;
-    video.setAttribute('crossorigin', 'anonymous');
-await new Promise(r => { video.onloadeddata = r; });
-    await new Promise(r => { video.onloadedmetadata = r; });
-    await new Promise(r => setTimeout(r, 2000));
+    video.srcObject = stream;
+await new Promise(r => { video.onloadedmetadata = r; });
+await new Promise(r => setTimeout(r, 2000));
 
     const track = stream.getVideoTracks()[0];
     try { await track.applyConstraints({ advanced: [{ torch: true }] }); } catch(e) {}
