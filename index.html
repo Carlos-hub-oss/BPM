@@ -234,7 +234,7 @@ function showPartialBPM() {
   if (redHistory.length < 15) return;
   const peaks = countPeaks(redHistory);
   const elapsed = (MEASURE_SECONDS - secondsLeft) || 1;
-  const bpm = Math.round((peaks / elapsed) * 60);
+  const bpm = Math.round((peaks / elapsed) * 60 * 2);
   if (bpm > 30 && bpm < 220) {
     bpmNumber.textContent = bpm;
     bpmNumber.className = 'bpm-number measuring';
