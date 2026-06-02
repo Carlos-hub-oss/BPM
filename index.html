@@ -134,9 +134,8 @@ async function startCamera() {
       audio: false
     });
     video.srcObject = stream;
-    video.srcObject = stream;
-await new Promise(r => { video.onloadedmetadata = r; });
-await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => { video.onloadedmetadata = r; });
+    await new Promise(r => setTimeout(r, 500));
 
     const track = stream.getVideoTracks()[0];
     try { await track.applyConstraints({ advanced: [{ torch: true }] }); } catch(e) {}
