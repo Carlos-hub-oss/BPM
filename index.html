@@ -321,7 +321,7 @@ function finishMeasure() {
   }
 
   const peaks = countPeaks(redHistory);
-  const bpm   = Math.round((peaks / MEASURE_SECONDS) * 60);
+  const bpm   = Math.round((peaks / MEASURE_SECONDS) * 60 * 2);
 
   if (bpm < 30 || bpm > 220) {
     bpmStatus.textContent = 'No se pudo calcular — repite la medición';
