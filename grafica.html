@@ -26,8 +26,8 @@
 </head>
 <body>
 
-<h2>Semana actual</h2>
-<div class="subtitle" id="subtitulo">Historial de actividad</div>
+<h2>Últimos 7 días</h2>
+<div class="subtitle">Historial de actividad</div>
 
 <div class="stats-row">
   <div class="stat-box">
@@ -55,69 +55,29 @@
 </div>
 
 <script>
-const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-
 function getParams() {
   const params = new URLSearchParams(window.location.search);
   const pasosStr = params.get('pasos') || '0,0,0,0,0,0,0';
-  // Viene de hace 6 días (índice 0) hasta hoy (índice 6)
   return pasosStr.split(',').map(v => parseFloat(v) || 0);
 }
 
-function buildWeek(pasosRaw) {
-  // Hoy
-  const hoy = new Date();
-  const diaHoy = hoy.getDay(); // 0=Dom, 1=Lun...6=Sáb
-
-  // Lunes de esta semana
-  const diffLunes = diaHoy === 0 ? -6 : 1 - diaHoy;
-  const lunes = new Date(hoy);
-  lunes.setDate(hoy.getDate() + diffLunes);
-  lunes.setHours(0,0,0,0);
-
+function getDayLabels() {
+  const dias = ['Sáb', 'Dom', 'Lun','Mar','Mié','Jue','Vie'];
   const labels = [];
-  const pasos  = new Array(7).fill(0);
-
-  for (let i = 0; i < 7; i++) {
-    const dia = new Date(lunes);
-    dia.setDate(lunes.getDate() + i);
-    dia.setHours(0,0,0,0);
-
-    const nombre = DIAS[dia.getDay()];
-    const esHoy = dia.toDateString() === hoy.toDateString();
-    labels.push(esHoy ? nombre + ' ◉' : nombre);
-
-    // Buscar en pasosRaw el valor correspondiente a este día
-    // pasosRaw[0]=hace 6 días, pasosRaw[6]=hoy
-    for (let j = 0; j < 7; j++) {
-      const diaRaw = new Date(hoy);
-      diaRaw.setDate(hoy.getDate() - 6 + j);
-      diaRaw.setHours(0,0,0,0);
-      if (diaRaw.toDateString() === dia.toDateString()) {
-        pasos[i] = pasosRaw[j];
-        break;
-      }
-    }
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    labels.push(dias[d.getDay()]);
   }
-
-  // Subtítulo con rango de la semana
-  const domingo = new Date(lunes);
-  domingo.setDate(lunes.getDate() + 6);
-  const opts = { day:'numeric', month:'short' };
-  document.getElementById('subtitulo').textContent =
-    lunes.toLocaleDateString('es-MX', opts) + ' — ' +
-    domingo.toLocaleDateString('es-MX', opts);
-
-  return { labels, pasos };
+  return labels;
 }
 
-const pasosRaw = getParams();
-const { labels, pasos } = buildWeek(pasosRaw);
+const pasos  = getParams();
+const labels = getDayLabels();
 const metros = pasos.map(p => parseFloat((p * 0.75).toFixed(1)));
 
 const total = pasos.reduce((a,b) => a+b, 0);
-const diasConDatos = pasos.filter(p => p > 0).length || 1;
-const prom  = Math.round(total / diasConDatos);
+const prom  = Math.round(total / 7);
 const mejor = Math.max(...pasos);
 
 document.getElementById('totalPasos').textContent = total.toLocaleString();
@@ -129,8 +89,8 @@ const commonOptions = {
   maintainAspectRatio: false,
   plugins: { legend: { display: false } },
   scales: {
-    x: { grid:{ display:false }, ticks:{ font:{ size:11, family:'DM Sans' }, color:'#7a8099' } },
-    y: { grid:{ color:'#f0f2f7' }, beginAtZero:true, ticks:{ font:{ size:10, family:'DM Sans' }, color:'#7a8099' } }
+    x: { grid: { display: false }, ticks: { font: { size: 11, family: 'DM Sans' }, color: '#7a8099' } },
+    y: { grid: { color: '#f0f2f7' }, beginAtZero: true, ticks: { font: { size: 10, family: 'DM Sans' }, color: '#7a8099' } }
   }
 };
 
