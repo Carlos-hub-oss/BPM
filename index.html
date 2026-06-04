@@ -16,9 +16,11 @@
   body { display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:24px 20px 32px; min-height:100vh; }
   .header { width:100%; display:flex; align-items:center; justify-content:space-between; }
   .header h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:3px; color:var(--red); }
+  .header-right { display:flex; align-items:center; gap:10px; }
   .status-dot { width:10px; height:10px; border-radius:50%; background:var(--text-dim); transition:background 0.4s,box-shadow 0.4s; }
   .status-dot.active { background:var(--red); box-shadow:0 0 10px var(--red-glow); animation:pulse-dot 1s ease-in-out infinite; }
   @keyframes pulse-dot { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.4);opacity:0.7} }
+  .help-btn { width:28px; height:28px; border-radius:50%; border:1px solid var(--surface2); background:var(--surface2); color:var(--text-dim); font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .bpm-display { display:flex; flex-direction:column; align-items:center; gap:4px; }
   .bpm-number { font-family:'Bebas Neue',sans-serif; font-size:100px; line-height:1; color:var(--text); transition:color 0.5s; letter-spacing:2px; }
   .bpm-number.measuring { color:var(--red); }
@@ -31,7 +33,7 @@
   canvas#wave { width:100%; height:80px; display:block; }
   .wave-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; pointer-events:none; opacity:1; transition:opacity 0.5s; }
   .wave-overlay.hidden { opacity:0; }
-  video#cam { display:none; }
+  video#cam { position:fixed; top:0; left:0; width:1px; height:1px; opacity:0.01; }
   canvas#capture { display:none; }
   .finger-area { width:100%; background:var(--surface); border-radius:16px; border:2px dashed var(--surface2); padding:16px; display:flex; flex-direction:column; align-items:center; gap:8px; transition:border-color 0.4s,background 0.4s; }
   .finger-area.detecting { border-color:var(--red-dim); background:#1a0e0e; }
@@ -52,10 +54,11 @@
   circle.prog { fill:none; stroke:var(--red); stroke-width:4; stroke-linecap:round; stroke-dasharray:163; stroke-dashoffset:163; transition:stroke-dashoffset 0.5s linear; }
   .progress-text { font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--text); }
   .controls-row { width:100%; display:flex; gap:12px; align-items:center; }
-  .help-btn { width:36px; height:36px; border-radius:50%; border:1px solid var(--surface2); background:var(--surface); color:var(--text-dim); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  /* Modal */
   .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.3s; z-index:100; }
   .modal-overlay.visible { opacity:1; pointer-events:all; }
-  .modal { background:var(--surface); border-radius:20px 20px 0 0; padding:24px 20px 36px; width:100%; transform:translateY(100%); transition:transform 0.3s; }
+  .modal { background:#1a1010; border-radius:20px 20px 0 0; padding:24px 20px 36px; width:100%; transform:translateY(100%); transition:transform 0.3s; }
   .modal-overlay.visible .modal { transform:translateY(0); }
   .modal-title { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; color:var(--red); margin-bottom:16px; }
   .modal-item { display:flex; gap:10px; margin-bottom:12px; font-size:13px; color:var(--text); line-height:1.5; }
@@ -67,8 +70,8 @@
 
 <div class="header">
   <h1>Frecuencia Cardíaca</h1>
-  <div style="display:flex;align-items:center;gap:10px;">
-    <button class="help-btn" onclick="document.getElementById('helpModal').classList.add('visible')">?</button>
+  <div class="header-right">
+    <button class="help-btn" id="helpBtn">?</button>
     <div class="status-dot" id="statusDot"></div>
   </div>
 </div>
@@ -82,7 +85,7 @@
     <div class="modal-item"><span class="icon">🧘</span><span>Mantén el dedo completamente quieto durante los 30 segundos.</span></div>
     <div class="modal-item"><span class="icon">🔁</span><span>Si el resultado parece muy bajo o muy alto, repite la medición.</span></div>
     <div class="modal-item"><span class="icon">⚠️</span><span>Esta medición es aproximada. No la uses como diagnóstico médico.</span></div>
-    <button class="modal-close" onclick="document.getElementById('helpModal').classList.remove('visible')">Entendido</button>
+    <button class="modal-close" id="modalClose">Entendido</button>
   </div>
 </div>
 
@@ -148,11 +151,24 @@ const btnStart       = document.getElementById('btnStart');
 const progressWrap   = document.getElementById('progressWrap');
 const progCircle     = document.getElementById('progCircle');
 const progressText   = document.getElementById('progressText');
+const helpBtn        = document.getElementById('helpBtn');
+const helpModal      = document.getElementById('helpModal');
+const modalClose     = document.getElementById('modalClose');
+
+helpBtn.addEventListener('click', () => helpModal.classList.add('visible'));
+modalClose.addEventListener('click', () => helpModal.classList.remove('visible'));
+helpModal.addEventListener('click', (e) => { if (e.target === helpModal) helpModal.classList.remove('visible'); });
 
 capCanvas.width  = 64;
 capCanvas.height = 64;
 
 async function startCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+    video.srcObject = null;
+    await new Promise(r => setTimeout(r, 300));
+  }
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width:{ideal:320}, height:{ideal:240} },
@@ -161,7 +177,6 @@ async function startCamera() {
     video.srcObject = stream;
     await new Promise(r => { video.onloadedmetadata = r; });
     await new Promise(r => setTimeout(r, 500));
-
     const track = stream.getVideoTracks()[0];
     try { await track.applyConstraints({ advanced: [{ torch: true }] }); } catch(e) {}
     return true;
@@ -173,7 +188,7 @@ async function startCamera() {
 }
 
 function stopCamera() {
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; video.srcObject = null; }
 }
 
 function getRedAvg() {
@@ -195,11 +210,11 @@ function countPeaks(arr) {
   const min = Math.min(...smooth);
   const max = Math.max(...smooth);
   const range = max - min;
-  if (range < 0.3) return 0;
+  if (range < 0.1) return 0;
   const norm = smooth.map(v => (v-min)/range);
-  const thresh = 0.55;
+  const thresh = 0.45;
   let peaks = 0;
-  const minDist = 6;
+  const minDist = 4;
   let lastPeak = -minDist;
   for (let i=2; i<norm.length-2; i++) {
     if (norm[i] > thresh &&
@@ -251,7 +266,7 @@ function showPartialBPM() {
   if (redHistory.length < 15) return;
   const peaks = countPeaks(redHistory);
   const elapsed = (MEASURE_SECONDS - secondsLeft) || 1;
-  const bpm = Math.round((peaks / elapsed) * 60);
+  const bpm = Math.round((peaks / elapsed) * 60 * 1.5);
   if (bpm > 30 && bpm < 220) {
     bpmNumber.textContent = bpm;
     bpmNumber.className = 'bpm-number measuring';
@@ -287,16 +302,12 @@ async function startMeasure() {
 
   intervalId = setInterval(() => {
     const { r, g, b } = getRedAvg();
-
     intensityBar.style.width = (r/255*100) + '%';
     intensityLabel.textContent = `rojo: ${Math.round(r)}  verde: ${Math.round(g)}  azul: ${Math.round(b)}`;
-
     redHistory.push(r);
     waveHistory.push(r);
     if (waveHistory.length > 150) waveHistory.shift();
     drawWave();
-
-    // Umbral mínimo muy bajo — detecta con poca luz
     if (r > 50) {
       fingerText.textContent = '✓ Señal detectada — mantén quieto';
       bpmStatus.textContent = 'Midiendo...';
@@ -306,7 +317,6 @@ async function startMeasure() {
       bpmStatus.textContent = 'Ajusta la posición del dedo';
       bpmStatus.className = 'bpm-status warn';
     }
-
     showPartialBPM();
   }, SAMPLE_RATE_MS);
 
@@ -338,7 +348,7 @@ function finishMeasure() {
   }
 
   const peaks = countPeaks(redHistory);
-  const bpm   = Math.round((peaks / MEASURE_SECONDS) * 60);
+  const bpm   = Math.round((peaks / MEASURE_SECONDS) * 60 * 1.5);
 
   if (bpm < 30 || bpm > 220) {
     bpmStatus.textContent = 'No se pudo calcular — repite la medición';
