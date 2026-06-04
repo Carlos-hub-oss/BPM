@@ -31,10 +31,7 @@
   canvas#wave { width:100%; height:80px; display:block; }
   .wave-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; pointer-events:none; opacity:1; transition:opacity 0.5s; }
   .wave-overlay.hidden { opacity:0; }
-  video#cam { position:fixed; 
-  top:0; left:0; 
-  width:1px; height:1px; 
-  opacity:0.01;  }
+  video#cam { display:none; }
   canvas#capture { display:none; }
   .finger-area { width:100%; background:var(--surface); border-radius:16px; border:2px dashed var(--surface2); padding:16px; display:flex; flex-direction:column; align-items:center; gap:8px; transition:border-color 0.4s,background 0.4s; }
   .finger-area.detecting { border-color:var(--red-dim); background:#1a0e0e; }
@@ -55,13 +52,38 @@
   circle.prog { fill:none; stroke:var(--red); stroke-width:4; stroke-linecap:round; stroke-dasharray:163; stroke-dashoffset:163; transition:stroke-dashoffset 0.5s linear; }
   .progress-text { font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--text); }
   .controls-row { width:100%; display:flex; gap:12px; align-items:center; }
+  .help-btn { width:36px; height:36px; border-radius:50%; border:1px solid var(--surface2); background:var(--surface); color:var(--text-dim); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.3s; z-index:100; }
+  .modal-overlay.visible { opacity:1; pointer-events:all; }
+  .modal { background:var(--surface); border-radius:20px 20px 0 0; padding:24px 20px 36px; width:100%; transform:translateY(100%); transition:transform 0.3s; }
+  .modal-overlay.visible .modal { transform:translateY(0); }
+  .modal-title { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; color:var(--red); margin-bottom:16px; }
+  .modal-item { display:flex; gap:10px; margin-bottom:12px; font-size:13px; color:var(--text); line-height:1.5; }
+  .modal-item .icon { font-size:18px; flex-shrink:0; }
+  .modal-close { width:100%; margin-top:16px; padding:14px; border-radius:12px; border:none; background:var(--red); color:#fff; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; cursor:pointer; }
 </style>
 </head>
 <body>
 
 <div class="header">
   <h1>Frecuencia Cardíaca</h1>
-  <div class="status-dot" id="statusDot"></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button class="help-btn" onclick="document.getElementById('helpModal').classList.add('visible')">?</button>
+    <div class="status-dot" id="statusDot"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="helpModal">
+  <div class="modal">
+    <div class="modal-title">Consejos para mejor resultado</div>
+    <div class="modal-item"><span class="icon">👆</span><span>Cubre completamente la cámara <strong>y</strong> el flash con la yema del dedo, no la punta.</span></div>
+    <div class="modal-item"><span class="icon">💡</span><span>Hazlo en un cuarto oscuro o cubre el dedo con la otra mano para bloquear luz externa.</span></div>
+    <div class="modal-item"><span class="icon">🤚</span><span>Presiona con fuerza moderada — ni muy suave ni muy fuerte.</span></div>
+    <div class="modal-item"><span class="icon">🧘</span><span>Mantén el dedo completamente quieto durante los 30 segundos.</span></div>
+    <div class="modal-item"><span class="icon">🔁</span><span>Si el resultado parece muy bajo o muy alto, repite la medición.</span></div>
+    <div class="modal-item"><span class="icon">⚠️</span><span>Esta medición es aproximada. No la uses como diagnóstico médico.</span></div>
+    <button class="modal-close" onclick="document.getElementById('helpModal').classList.remove('visible')">Entendido</button>
+  </div>
 </div>
 
 <div class="bpm-display">
@@ -131,12 +153,6 @@ capCanvas.width  = 64;
 capCanvas.height = 64;
 
 async function startCamera() {
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-    stream = null;
-    video.srcObject = null;
-    await new Promise(r => setTimeout(r, 500));
-  }
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width:{ideal:320}, height:{ideal:240} },
@@ -145,6 +161,7 @@ async function startCamera() {
     video.srcObject = stream;
     await new Promise(r => { video.onloadedmetadata = r; });
     await new Promise(r => setTimeout(r, 500));
+
     const track = stream.getVideoTracks()[0];
     try { await track.applyConstraints({ advanced: [{ torch: true }] }); } catch(e) {}
     return true;
@@ -178,11 +195,11 @@ function countPeaks(arr) {
   const min = Math.min(...smooth);
   const max = Math.max(...smooth);
   const range = max - min;
-  if (range < 0.1) return 0;
+  if (range < 0.3) return 0;
   const norm = smooth.map(v => (v-min)/range);
-  const thresh = 0.45;
+  const thresh = 0.55;
   let peaks = 0;
-  const minDist = 4;
+  const minDist = 6;
   let lastPeak = -minDist;
   for (let i=2; i<norm.length-2; i++) {
     if (norm[i] > thresh &&
@@ -234,7 +251,7 @@ function showPartialBPM() {
   if (redHistory.length < 15) return;
   const peaks = countPeaks(redHistory);
   const elapsed = (MEASURE_SECONDS - secondsLeft) || 1;
-  const bpm = Math.round((peaks / elapsed) * 60 * 1.5);
+  const bpm = Math.round((peaks / elapsed) * 60);
   if (bpm > 30 && bpm < 220) {
     bpmNumber.textContent = bpm;
     bpmNumber.className = 'bpm-number measuring';
@@ -321,7 +338,7 @@ function finishMeasure() {
   }
 
   const peaks = countPeaks(redHistory);
-  const bpm   = Math.round((peaks / MEASURE_SECONDS) * 60 * 1.5);
+  const bpm   = Math.round((peaks / MEASURE_SECONDS) * 60);
 
   if (bpm < 30 || bpm > 220) {
     bpmStatus.textContent = 'No se pudo calcular — repite la medición';
