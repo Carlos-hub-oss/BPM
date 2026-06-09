@@ -22,10 +22,68 @@
   .stat-box { flex:1; background:var(--surface); border-radius:12px; border:1px solid var(--border); padding:12px; text-align:center; }
   .stat-value { font-size:22px; font-weight:500; color:var(--accent); }
   .stat-label { font-size:11px; color:var(--text-dim); margin-top:2px; }
+
+  /* Ticket de impresión (oculto en pantalla) */
+  #ticket-print {
+    display: none;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    width: 300px;
+    margin: 0 auto;
+    padding: 12px;
+    color: #000;
+  }
+  #ticket-print .t-title {
+    text-align: center;
+    font-size: 15px;
+    font-weight: bold;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+  }
+  #ticket-print .t-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  #ticket-print .t-label { color: #444; }
+  #ticket-print .t-value { font-weight: bold; }
+  #ticket-print .t-divider {
+    border-top: 1px dashed #000;
+    margin: 8px 0;
+  }
+  #ticket-print .t-footer {
+    text-align: center;
+    font-size: 11px;
+    color: #666;
+    margin-top: 10px;
+  }
+
+  /* Al imprimir: oculta la app, muestra el ticket */
+  @media print {
+    body > *:not(#ticket-print) { display: none !important; }
+    #ticket-print { display: block !important; }
+  }
 </style>
 </head>
 <body>
 
+<!-- Ticket (oculto, solo aparece al imprimir) -->
+<div id="ticket-print">
+  <div class="t-title">📋 Resumen de Salud</div>
+  <div class="t-row"><span class="t-label">Fecha:</span><span class="t-value" id="t-fecha">--</span></div>
+  <div class="t-divider"></div>
+  <div class="t-row"><span class="t-label">Último BPM:</span><span class="t-value" id="t-bpm">--</span></div>
+  <div class="t-row"><span class="t-label">IMC:</span><span class="t-value" id="t-imc">--</span></div>
+  <div class="t-divider"></div>
+  <div class="t-row"><span class="t-label">Pasos totales (7d):</span><span class="t-value" id="t-total">--</span></div>
+  <div class="t-row"><span class="t-label">Promedio/día:</span><span class="t-value" id="t-prom">--</span></div>
+  <div class="t-row"><span class="t-label">Mejor día:</span><span class="t-value" id="t-mejor">--</span></div>
+  <div class="t-divider"></div>
+  <div class="t-footer">Proyecto APP · Generado automáticamente</div>
+</div>
+
+<!-- Contenido normal de la app -->
 <h2>Últimos 7 días</h2>
 <div class="subtitle">Historial de actividad</div>
 
@@ -58,14 +116,20 @@
 function getParams() {
   const params = new URLSearchParams(window.location.search);
   const pasosStr = params.get('pasos') || '0,0,0,0,0,0,0';
-  return pasosStr.split(',').map(v => parseFloat(v) || 0);
+  const bpm      = params.get('bpm')   || '--';
+  const imc      = params.get('imc')   || '--';
+  return {
+    pasos: pasosStr.split(',').map(v => parseFloat(v) || 0),
+    bpm,
+    imc
+  };
 }
 
 function getDayLabels() {
   return ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 }
 
-const pasos  = getParams();
+const { pasos, bpm, imc } = getParams();
 const labels = getDayLabels();
 const metros = pasos.map(p => parseFloat((p * 0.75).toFixed(1)));
 
@@ -73,9 +137,24 @@ const total = pasos.reduce((a,b) => a+b, 0);
 const prom  = Math.round(total / 7);
 const mejor = Math.max(...pasos);
 
+// Llenar estadísticas visibles
 document.getElementById('totalPasos').textContent = total.toLocaleString();
 document.getElementById('promPasos').textContent  = prom.toLocaleString();
 document.getElementById('mejorDia').textContent   = mejor.toLocaleString();
+
+// Llenar ticket de impresión
+const hoy = new Date().toLocaleDateString('es-MX', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+document.getElementById('t-fecha').textContent = hoy;
+document.getElementById('t-bpm').textContent   = bpm + ' bpm';
+document.getElementById('t-imc').textContent   = imc;
+document.getElementById('t-total').textContent = total.toLocaleString();
+document.getElementById('t-prom').textContent  = prom.toLocaleString();
+document.getElementById('t-mejor').textContent = mejor.toLocaleString();
+
+// Función llamada desde App Inventor
+function imprimirTicket() {
+  window.print();
+}
 
 const commonOptions = {
   responsive: true,
