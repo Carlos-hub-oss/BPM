@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resumen de Salud</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Courier New', monospace;
+    background: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    padding: 30px 16px;
+  }
+  .ticket {
+    background: white;
+    width: 300px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  .title {
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 14px;
+  }
+  .divider {
+    border-top: 1px dashed #aaa;
+    margin: 10px 0;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .label { color: #555; }
+  .value { font-weight: bold; color: #111; }
+  .footer {
+    text-align: center;
+    font-size: 10px;
+    color: #aaa;
+    margin-top: 14px;
+  }
+  .btn-print {
+    display: block;
+    width: 100%;
+    margin-top: 16px;
+    padding: 10px;
+    background: #534AB7;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  @media print {
+    body { background: white; padding: 0; }
+    .ticket { box-shadow: none; border-radius: 0; width: 100%; }
+    .btn-print { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="ticket">
+  <div class="title">📋 Resumen de Salud</div>
+  <div class="subtitle" id="fecha">--</div>
+
+  <div class="divider"></div>
+
+  <div class="row">
+    <span class="label">❤️ Último BPM</span>
+    <span class="value" id="bpm">--</span>
+  </div>
+  <div class="row">
+    <span class="label">⚖️ IMC</span>
+    <span class="value" id="imc">--</span>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="row">
+    <span class="label">👟 Pasos hoy</span>
+    <span class="value" id="pasos">--</span>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="footer">Proyecto APP · Generado automáticamente</div>
+
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+
+  const bpm   = params.get('bpm')   || '--';
+  const imc   = params.get('imc')   || '--';
+  const pasos = params.get('pasos') || '--';
+
+  const hoy = new Date().toLocaleDateString('es-MX', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  document.getElementById('fecha').textContent = hoy;
+  document.getElementById('bpm').textContent   = bpm + ' bpm';
+  document.getElementById('imc').textContent   = imc;
+  document.getElementById('pasos').textContent = parseInt(pasos).toLocaleString();
+</script>
+</body>
+</html>
