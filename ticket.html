@@ -44,6 +44,14 @@
   }
   .label { color: #555; }
   .value { font-weight: bold; color: #111; }
+  .diagnostico {
+    text-align: center;
+    font-size: 12px;
+    color: #534AB7;
+    font-weight: bold;
+    margin-top: 4px;
+    margin-bottom: 4px;
+  }
   .footer {
     text-align: center;
     font-size: 10px;
@@ -80,17 +88,14 @@
     <span class="label">❤️ Último BPM</span>
     <span class="value" id="bpm">--</span>
   </div>
-  <div class="row">
-    <span class="label">⚖️ IMC</span>
-    <span class="value" id="imc">--</span>
-  </div>
 
   <div class="divider"></div>
 
   <div class="row">
-    <span class="label">👟 Pasos hoy</span>
-    <span class="value" id="pasos">--</span>
+    <span class="label">⚖️ IMC</span>
+    <span class="value" id="imc">--</span>
   </div>
+  <div class="diagnostico" id="diagnostico">--</div>
 
   <div class="divider"></div>
 
@@ -102,19 +107,19 @@
 <script>
   const params = new URLSearchParams(window.location.search);
 
-  const bpm   = params.get('bpm')   || '--';
-  const imc   = params.get('imc')   || '--';
-  const pasos = params.get('pasos') || '--';
+  const bpm         = params.get('bpm')         || '--';
+  const imc         = params.get('imc')         || '--';
+  const diagnostico = params.get('diagnostico') || '--';
 
   const hoy = new Date().toLocaleDateString('es-MX', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
 
-  document.getElementById('fecha').textContent = hoy;
-  document.getElementById('bpm').textContent   = bpm + ' bpm';
-  document.getElementById('imc').textContent   = imc;
-  document.getElementById('pasos').textContent = parseInt(pasos).toLocaleString();
+  document.getElementById('fecha').textContent       = hoy;
+  document.getElementById('bpm').textContent         = bpm + ' bpm';
+  document.getElementById('imc').textContent         = imc;
+  document.getElementById('diagnostico').textContent = diagnostico;
 </script>
 </body>
 </html>
